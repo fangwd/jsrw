@@ -1,13 +1,15 @@
-jsrw - A zero-copy JSON reader and writer.
+A performance first library to help reading/writing JSON data in C++.
 
-*jsrw* is a performance first C++ library to help reading/writing JSON data.
+Apart from a few primitive data types (`int`, `double`, and `bool`), *jsrw* doesn't parse JSON bytes
+into any data structure in memory. Instead, it exposes an API to let the user check what's next in
+the input stream and parses data into user's data structures directly.
 
 # Usage
 
 ## Reading
 Parsing a vector:
 ```cpp
-jsrw::Reader  reader("[1,2,3]");
+jsrw::Reader reader("[1,2,3]");
 std::vector<int>  parsed;
 for (reader.consume('['); !reader.next_is(']'); reader.consume(',')) {
   parsed.push_back(reader.read<int>());

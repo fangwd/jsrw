@@ -9,8 +9,6 @@ Reader::Reader(const std::string &input) : Reader(input.data(), input.data() + i
 Reader::Reader(const char *begin, const char *end) : input_end_(end), input_(begin) { parse(); }
 Reader::Reader(const char *begin) : input_end_(begin + strlen(begin)), input_(begin) { parse(); }
 
-// Reads the next token into next_. Note the token type for strings is '"', the string
-// content must be read by calling read(std::string&), which returns String on success.
 void Reader::parse() {
     Token &token = next_;
 

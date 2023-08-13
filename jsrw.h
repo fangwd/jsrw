@@ -64,7 +64,7 @@ class Reader {
         return false;
     }
 
-    template<typename T>
+    template <typename T>
     T read() {
         T t;
         read(t);
@@ -76,9 +76,8 @@ class Reader {
             value = next_.dval;
             parse();
             return true;
-        }
-        else if (next_.type ==Integer ) {
-            value = (double) next_.lval;
+        } else if (next_.type == Integer) {
+            value = (double)next_.lval;
             parse();
             return true;
         }
