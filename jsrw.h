@@ -1,7 +1,10 @@
 #pragma once
 
+#include <functional>
+#include <map>
 #include <ostream>
 #include <string>
+#include <vector>
 
 namespace jsrw {
 
@@ -15,8 +18,21 @@ enum TokenType {
     Error = 400,
 };
 
+struct Slice {
+    const char *data;
+    size_t length;
+    Slice() : data(nullptr), length(0) {}
+    Slice(const char *data, size_t length) : data(data), length(length) {}
+    Slice(const char *data) : Slice(data, strlen(data)) {}
+    Slice(const std::string &s) : Slice(s.data(), s.size()) {}
+    inline char operator[](size_t index) const { return index < length ? data[index] : '\0'; }
+    bool operator==(const char *) const;
+    bool operator==(const std::string &) const;
+    bool operator==(const Slice &) const;
+};
+
 class Reader {
-   private:
+  private:
     const char *input_end_;
     const char *input_;
 
@@ -39,12 +55,14 @@ class Reader {
     int parse_num(Token &);
     int parse_hex(std::string &);
 
-   public:
+  public:
     Reader(const std::string &);
     Reader(const char *begin, const char *end);
     Reader(const char *begin);
 
-    inline bool next_is(int type) const { return (next_.type == type); }
+    inline bool next_is(int type) const {
+        return (next_.type == type);
+    }
 
     void consume() {
         if (next_.type == String) {
@@ -112,8 +130,72 @@ class Reader {
         return false;
     }
 
+    template <class T>
+    bool read(std::vector<T> &v, std::function<bool(Reader &, T &)> fn) {
+        if (!consume('[')) {
+            return false;
+        }
+        v.clear();
+        while (!next_is(']')) {
+            T t;
+            if (!fn(*this, t)) {
+                v.push_back(std::move(t));
+                return false;
+            }
+            v.push_back(std::move(t));
+            if (!consume(',')) {
+                break;
+            }
+        }
+        return consume(']');
+    }
+
+    template<class T=Slice>
+    bool read(std::function<bool(const T &)> fn) {
+        if (!consume('{')) {
+            return false;
+        }
+        T key;
+        while (!next_is('}')) {
+            if (!read_key(key)) {
+                return false;
+            }
+            if (!fn(key)) {
+                return false;
+            }
+            if (!consume(',')) {
+                break;
+            }
+        }
+        return consume('}');
+    }
+
+    template <class T>
+    bool read(std::map<std::string, T> &m, std::function<bool(Reader &, T &)> fn) {
+        if (!consume('{')) {
+            return false;
+        }
+        while (!next_is('}')) {
+            std::string key;
+            if (!read_key(key)) {
+                return false;
+            }
+            T t;
+            if (!fn(*this, t)) {
+                m[std::move(key)] = std::move(t);
+                return false;
+            }
+            m[std::move(key)] = std::move(t);
+            if (!consume(',')) {
+                break;
+            }
+        }
+        return consume('}');
+    }
+
     bool read(std::string &val);
     bool read_key(std::string &key);
+    bool read_key(Slice &s);
 };
 
 struct str {

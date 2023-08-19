@@ -6,8 +6,12 @@ namespace jsrw {
 
 Reader::Reader(const std::string &input) : Reader(input.data(), input.data() + input.size()) {}
 
-Reader::Reader(const char *begin, const char *end) : input_end_(end), input_(begin) { parse(); }
-Reader::Reader(const char *begin) : input_end_(begin + strlen(begin)), input_(begin) { parse(); }
+Reader::Reader(const char *begin, const char *end) : input_end_(end), input_(begin) {
+    parse();
+}
+Reader::Reader(const char *begin) : input_end_(begin + strlen(begin)), input_(begin) {
+    parse();
+}
 
 void Reader::parse() {
     Token &token = next_;
@@ -20,49 +24,49 @@ void Reader::parse() {
         int ch = *input_;
 
         switch (ch) {
-            case '{':
-            case '}':
-            case '[':
-            case ']':
-            case ':':
-            case ',':
-                input_ += 1;
-                token.type = ch;
-                break;
-            case '"':
-                input_ += 1;
-                token.type = String;
-                break;
-            case 'n':
-                if (input_ + 3 < input_end_ && input_[1] == 'u' && input_[2] == 'l' && input_[3] == 'l') {
-                    input_ += 4;
-                    token.type = Null;
-                } else {
-                    token.type = Error;
-                }
-                break;
-            case 't':
-                if (input_ + 3 < input_end_ && input_[1] == 'r' && input_[2] == 'u' && input_[3] == 'e') {
-                    input_ += 4;
-                    token.bval = true;
-                    token.type = Bool;
-                } else {
-                    token.type = Error;
-                }
-                break;
-            case 'f':
-                if (input_ + 4 < input_end_ && input_[1] == 'a' && input_[2] == 'l' && input_[3] == 's' &&
+        case '{':
+        case '}':
+        case '[':
+        case ']':
+        case ':':
+        case ',':
+            input_ += 1;
+            token.type = ch;
+            break;
+        case '"':
+            input_ += 1;
+            token.type = String;
+            break;
+        case 'n':
+            if (input_ + 3 < input_end_ && input_[1] == 'u' && input_[2] == 'l' && input_[3] == 'l') {
+                input_ += 4;
+                token.type = Null;
+            } else {
+                token.type = Error;
+            }
+            break;
+        case 't':
+            if (input_ + 3 < input_end_ && input_[1] == 'r' && input_[2] == 'u' && input_[3] == 'e') {
+                input_ += 4;
+                token.bval = true;
+                token.type = Bool;
+            } else {
+                token.type = Error;
+            }
+            break;
+        case 'f':
+            if (input_ + 4 < input_end_ && input_[1] == 'a' && input_[2] == 'l' && input_[3] == 's' &&
                     input_[4] == 'e') {
-                    input_ += 5;
-                    token.bval = false;
-                    token.type = Bool;
-                } else {
-                    token.type = Error;
-                }
-                break;
-            default:
-                token.type = parse_num(token);
-                break;
+                input_ += 5;
+                token.bval = false;
+                token.type = Bool;
+            } else {
+                token.type = Error;
+            }
+            break;
+        default:
+            token.type = parse_num(token);
+            break;
         }
     }
 }
@@ -171,37 +175,37 @@ bool Reader::read(std::string &s) {
                 return false;
             }
             switch (*input_++) {
-                case '"':
-                    s.push_back('"');
-                    break;
-                case '\\':
-                    s.push_back('\\');
-                    break;
-                case '/':
-                    s.push_back('/');
-                    break;
-                case 'b':
-                    s.push_back('\b');
-                    break;
-                case 'f':
-                    s.push_back('\f');
-                    break;
-                case 'n':
-                    s.push_back('\n');
-                    break;
-                case 'r':
-                    s.push_back('\r');
-                    break;
-                case 't':
-                    s.push_back('\t');
-                    break;
-                case 'u':
-                    if (parse_hex(s) == Error) {
-                        return false;
-                    }
-                    break;
-                default:
+            case '"':
+                s.push_back('"');
+                break;
+            case '\\':
+                s.push_back('\\');
+                break;
+            case '/':
+                s.push_back('/');
+                break;
+            case 'b':
+                s.push_back('\b');
+                break;
+            case 'f':
+                s.push_back('\f');
+                break;
+            case 'n':
+                s.push_back('\n');
+                break;
+            case 'r':
+                s.push_back('\r');
+                break;
+            case 't':
+                s.push_back('\t');
+                break;
+            case 'u':
+                if (parse_hex(s) == Error) {
                     return false;
+                }
+                break;
+            default:
+                return false;
             }
         } else {
             s.push_back(c);
@@ -255,6 +259,28 @@ bool Reader::read_key(std::string &key) {
     return true;
 }
 
+bool Reader::read_key(Slice& s) {
+    if (next_.type != String) {
+        return false;
+    }
+
+    s.data = input_;
+
+    skip_string();
+
+    s.length = input_ - s.data - 1;
+
+    parse();
+
+    if (!next_is(':')) {
+        return false;
+    }
+
+    parse();
+
+    return true;
+}
+
 void Reader::skip_space() {
     while (input_ < input_end_ && isspace(*input_)) input_++;
 }
@@ -278,45 +304,73 @@ std::ostream &operator<<(std::ostream &os, const str &s) {
 
     for (char c = *p; p < q; c = *++p) {
         switch (c) {
-            case '\"':
-                os << "\\\"";
-                break;
-            case '\\':
-                os << "\\\\";
-                break;
-            case '/':
-                os << "\\/";
-                break;
-            case '\b':
-                os << "\\b";
-                break;
-            case '\f':
-                os << "\\f";
-                break;
-            case '\n':
-                os << "\\n";
-                break;
-            case '\r':
-                os << "\\r";
-                break;
-            case '\t':
-                os << "\\t";
-                break;
-            default:
-                if (c >= 0 && c <= 0x1F) {
-                    char buf[8];
-                    snprintf(buf, sizeof(buf), "\\u%04x", c);
-                    os << buf;
-                } else {
-                    os << c;
-                }
-                break;
+        case '\"':
+            os << "\\\"";
+            break;
+        case '\\':
+            os << "\\\\";
+            break;
+        case '/':
+            os << "\\/";
+            break;
+        case '\b':
+            os << "\\b";
+            break;
+        case '\f':
+            os << "\\f";
+            break;
+        case '\n':
+            os << "\\n";
+            break;
+        case '\r':
+            os << "\\r";
+            break;
+        case '\t':
+            os << "\\t";
+            break;
+        default:
+            if (c >= 0 && c <= 0x1F) {
+                char buf[8];
+                snprintf(buf, sizeof(buf), "\\u%04x", c);
+                os << buf;
+            } else {
+                os << c;
+            }
+            break;
         }
     }
 
     os << '"';
 
     return os;
+}
+
+bool Slice::operator==(const char *s) const {
+    size_t offset = 0;
+    while (*s) {
+        if (offset >= length || *s != data[offset]) {
+            return false;
+        }
+        s++;
+        offset++;
+    }
+    return offset == length;
+}
+
+bool Slice::operator==(const std::string& s) const {
+    return operator==(Slice(s));
+}
+
+bool Slice::operator==(const Slice &other) const {
+    if (length != other.length) {
+        return false;
+    }
+    for (size_t i = 0; i < length; i++) {
+        if (data[i] != other.data[i]) {
+        return false;
+        }
+    }
+    return true;
 }
 
 }  // namespace jsrw

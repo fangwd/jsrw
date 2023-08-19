@@ -266,6 +266,7 @@ static void test_read_key() {
         assert(reader.read(bval));
         assert(reader.next_is(Empty));
     }
+
     {
         const std::string input = " 123";
         Reader reader(input);
@@ -277,6 +278,37 @@ static void test_read_key() {
         Reader reader(input);
         assert(!reader.read_key(key));
     }
+
+    {
+        const std::string input = " \"success\": true";
+        Slice s;
+        Reader reader(input);
+        assert(reader.read_key(s));
+        assert(s.length== 7);
+        assert(s== "success");
+        assert(reader.next_is(Bool));
+    }
+
+    {
+        const std::string input = "\"success\" : true";
+        Slice s;
+        Reader reader(input);
+        assert(reader.read_key(s));
+        assert(s.length == 7);
+        assert(memcmp(s.data, "success", 7) == 0);
+        assert(reader.next_is(Bool));
+    }
+
+    {
+        const std::string input = "\"\\nsu\\\"ccess\\\"\" : true";
+        Slice s;
+        Reader reader(input);
+        assert(reader.read_key(s));
+        assert(s.length == 13);
+        assert(memcmp(s.data, "\\nsu\\\"ccess\\\"", 13) == 0);
+        assert(reader.next_is(Bool));
+    }
+
 }
 
 static void test_read_mix() {
@@ -352,7 +384,7 @@ static void parse_map() {
         } else if (key == "price") {
             product.price = reader.read<double>();
         } else {
-            std::cout << "Ignored key '" << key << "'\n";
+            // std::cout << "Ignored key '" << key << "'\n";
             reader.consume();
         }
     }
@@ -361,6 +393,190 @@ static void parse_map() {
     assert(product.id == 1);
     assert(product.name == "product");
     assert(dequal(product.price, 1));
+}
+
+static void parse_vector2() {
+    auto fn = [](Reader& reader, int& value) {
+        return reader.read(value);
+    };
+    {
+        jsrw::Reader reader("[1,2,3]");
+        std::vector<int> values;
+        bool ok = reader.read<int>(values, fn);
+        assert(ok);
+        assert(values == std::vector<int>({1, 2, 3}));
+    }
+
+    {
+        jsrw::Reader reader("[1,]");
+        std::vector<int> values;
+        bool ok = reader.read<int>(values, fn);
+        assert(ok);
+        assert(values == std::vector<int>({1}));
+    }
+
+    {
+        jsrw::Reader reader("[]");
+        std::vector<int> values;
+        bool ok = reader.read<int>(values, fn);
+        assert(ok);
+        assert(values == std::vector<int>());
+    }
+
+    {
+        jsrw::Reader reader("[,]");
+        std::vector<int> values;
+        bool ok = reader.read<int>(values, fn);
+        assert(!ok);
+    }
+
+    {
+        jsrw::Reader reader("[1,,2]");
+        std::vector<int> values;
+        bool ok = reader.read<int>(values, [](jsrw::Reader &reader, int& n) -> bool{
+            return reader.read(n);
+        });
+        assert(!ok);
+    }
+}
+
+static void parse_map2() {
+    auto fn = [](Reader& reader, int& value) {
+        return reader.read(value);
+    };
+    {
+        jsrw::Reader reader("{\"x\": 1, \"y\":2}");
+        std::map<std::string, int> values;
+        bool ok = reader.read<int>(values, fn);
+        assert(ok);
+        std::map<std::string, int> expected = {{"x", 1}, {"y", 2}};
+        assert(values == expected);
+    }
+
+    {
+        jsrw::Reader reader("[1,]");
+        std::vector<int> values;
+        bool ok = reader.read<int>(values, fn);
+        assert(ok);
+        assert(values == std::vector<int>({1}));
+    }
+
+    {
+        jsrw::Reader reader("[]");
+        std::vector<int> values;
+        bool ok = reader.read<int>(values, fn);
+        assert(ok);
+        assert(values == std::vector<int>());
+    }
+
+    {
+        jsrw::Reader reader("[,]");
+        std::vector<int> values;
+        bool ok = reader.read<int>(values, fn);
+        assert(!ok);
+    }
+
+    {
+        jsrw::Reader reader("[1,,2]");
+        std::vector<int> values;
+        bool ok = reader.read<int>(values, fn);
+        assert(!ok);
+    }
+}
+
+struct Person {
+    std::string name;
+    bool decode(jsrw::Reader& reader) {
+        return reader.read<Slice>([&](const Slice& key) {
+            if (key == "name") {
+                return reader.read(name);
+            }
+            return false;
+        });
+    }
+};
+
+static void test_parse_objects() {
+    {
+        jsrw::Reader reader("{\"name\": \"person\"}");
+        Person p;
+        assert(p.decode(reader));
+        assert(p.name == "person");
+        assert(reader.next_is(Empty));
+    }
+    {
+        jsrw::Reader reader("{\"name\": 100");
+        Person p;
+        assert(!p.decode(reader));
+    }
+    {
+        // unknown field 'age'
+        jsrw::Reader reader("{\"name\": \"person\", \"age\": 1}");
+        Person p;
+        assert(!p.decode(reader));
+    }
+    {
+        jsrw::Reader reader("{}");
+        Person p;
+        assert(p.decode(reader));
+        assert(p.name.empty());
+    }
+
+    {
+        auto fn = [](Reader& reader, Person& person) {
+            return person.decode(reader);
+        };
+        jsrw::Reader reader("[{\"name\": \"person1\"}, {\"name\": \"person2\",} ]");
+        std::vector<Person> people;
+        bool ok = reader.read<Person>(people, fn);
+        assert(ok);
+        assert(people.size() == 2);
+        assert(people[0].name == "person1");
+        assert(people[1].name == "person2");
+    }
+
+    auto fn2 = [](Reader& reader, Person*& person) {
+        if (reader.next_is(Null)) {
+            reader.consume();
+            person = nullptr;
+            return true;
+        }
+        person = new Person();
+        return person->decode(reader);
+    };
+
+    {
+        jsrw::Reader reader("[{\"name\": \"person1\"}, null, {\"name\": \"person3\"} ]");
+        std::vector<Person*> people;
+        bool ok = reader.read<Person*>(people, fn2);
+        assert(ok);
+        assert(people.size() == 3);
+        assert(people[0]->name == "person1");
+        assert(people[1] == nullptr);
+        assert(people[2]->name == "person3");
+        for (auto p : people) {
+            delete p;
+        }
+    }
+
+    {
+        jsrw::Reader reader("[{\"name\": \"person1\"}, null, {\"code\": \"1\"} ]");
+        std::vector<Person*> people;
+        bool ok = reader.read<Person*>(people, fn2);
+        assert(!ok);
+        for (auto p : people) {
+            delete p;
+        }
+    }
+}
+
+static void test_slice() {
+    Slice slice("abc", 3);
+    std::string str("abc");
+    assert(slice == str);
+    assert(slice.data != str.c_str());
+    assert(slice == str.c_str());
+    assert(slice[0] == 'a');
 }
 
 int main() {
@@ -375,4 +591,8 @@ int main() {
     test_stringify();
     parse_vector();
     parse_map();
+    parse_vector2();
+    parse_map2();
+    test_parse_objects();
+    test_slice();
 }
