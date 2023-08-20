@@ -284,8 +284,8 @@ static void test_read_key() {
         Slice s;
         Reader reader(input);
         assert(reader.read_key(s));
-        assert(s.length== 7);
-        assert(s== "success");
+        assert(s.length == 7);
+        assert(s == "success");
         assert(reader.next_is(Bool));
     }
 
@@ -308,7 +308,6 @@ static void test_read_key() {
         assert(memcmp(s.data, "\\nsu\\\"ccess\\\"", 13) == 0);
         assert(reader.next_is(Bool));
     }
-
 }
 
 static void test_read_mix() {
@@ -396,13 +395,10 @@ static void parse_map() {
 }
 
 static void parse_vector2() {
-    auto fn = [](Reader& reader, int& value) {
-        return reader.read(value);
-    };
     {
         jsrw::Reader reader("[1,2,3]");
         std::vector<int> values;
-        bool ok = reader.read<int>(values, fn);
+        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
         assert(ok);
         assert(values == std::vector<int>({1, 2, 3}));
     }
@@ -410,7 +406,7 @@ static void parse_vector2() {
     {
         jsrw::Reader reader("[1,]");
         std::vector<int> values;
-        bool ok = reader.read<int>(values, fn);
+        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
         assert(ok);
         assert(values == std::vector<int>({1}));
     }
@@ -418,7 +414,7 @@ static void parse_vector2() {
     {
         jsrw::Reader reader("[]");
         std::vector<int> values;
-        bool ok = reader.read<int>(values, fn);
+        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
         assert(ok);
         assert(values == std::vector<int>());
     }
@@ -426,28 +422,23 @@ static void parse_vector2() {
     {
         jsrw::Reader reader("[,]");
         std::vector<int> values;
-        bool ok = reader.read<int>(values, fn);
+        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
         assert(!ok);
     }
 
     {
         jsrw::Reader reader("[1,,2]");
         std::vector<int> values;
-        bool ok = reader.read<int>(values, [](jsrw::Reader &reader, int& n) -> bool{
-            return reader.read(n);
-        });
+        bool ok = reader.read<int>(values, [&](int& n) -> bool { return reader.read(n); });
         assert(!ok);
     }
 }
 
 static void parse_map2() {
-    auto fn = [](Reader& reader, int& value) {
-        return reader.read(value);
-    };
     {
         jsrw::Reader reader("{\"x\": 1, \"y\":2}");
         std::map<std::string, int> values;
-        bool ok = reader.read<int>(values, fn);
+        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
         assert(ok);
         std::map<std::string, int> expected = {{"x", 1}, {"y", 2}};
         assert(values == expected);
@@ -456,7 +447,7 @@ static void parse_map2() {
     {
         jsrw::Reader reader("[1,]");
         std::vector<int> values;
-        bool ok = reader.read<int>(values, fn);
+        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
         assert(ok);
         assert(values == std::vector<int>({1}));
     }
@@ -464,7 +455,7 @@ static void parse_map2() {
     {
         jsrw::Reader reader("[]");
         std::vector<int> values;
-        bool ok = reader.read<int>(values, fn);
+        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
         assert(ok);
         assert(values == std::vector<int>());
     }
@@ -472,14 +463,14 @@ static void parse_map2() {
     {
         jsrw::Reader reader("[,]");
         std::vector<int> values;
-        bool ok = reader.read<int>(values, fn);
+        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
         assert(!ok);
     }
 
     {
         jsrw::Reader reader("[1,,2]");
         std::vector<int> values;
-        bool ok = reader.read<int>(values, fn);
+        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
         assert(!ok);
     }
 }
@@ -523,10 +514,8 @@ static void test_parse_objects() {
     }
 
     {
-        auto fn = [](Reader& reader, Person& person) {
-            return person.decode(reader);
-        };
         jsrw::Reader reader("[{\"name\": \"person1\"}, {\"name\": \"person2\",} ]");
+        auto fn = [&](Person& person) { return person.decode(reader); };
         std::vector<Person> people;
         bool ok = reader.read<Person>(people, fn);
         assert(ok);
@@ -535,20 +524,18 @@ static void test_parse_objects() {
         assert(people[1].name == "person2");
     }
 
-    auto fn2 = [](Reader& reader, Person*& person) {
-        if (reader.next_is(Null)) {
-            reader.consume();
-            person = nullptr;
-            return true;
-        }
-        person = new Person();
-        return person->decode(reader);
-    };
-
     {
         jsrw::Reader reader("[{\"name\": \"person1\"}, null, {\"name\": \"person3\"} ]");
         std::vector<Person*> people;
-        bool ok = reader.read<Person*>(people, fn2);
+        bool ok = reader.read<Person*>(people, [&](Person*& person) {
+            if (reader.next_is(Null)) {
+                reader.consume();
+                person = nullptr;
+                return true;
+            }
+            person = new Person();
+            return person->decode(reader);
+        });
         assert(ok);
         assert(people.size() == 3);
         assert(people[0]->name == "person1");
@@ -562,7 +549,15 @@ static void test_parse_objects() {
     {
         jsrw::Reader reader("[{\"name\": \"person1\"}, null, {\"code\": \"1\"} ]");
         std::vector<Person*> people;
-        bool ok = reader.read<Person*>(people, fn2);
+        bool ok = reader.read<Person*>(people, [&](Person*& person) {
+            if (reader.next_is(Null)) {
+                reader.consume();
+                person = nullptr;
+                return true;
+            }
+            person = new Person();
+            return person->decode(reader);
+        });
         assert(!ok);
         for (auto p : people) {
             delete p;

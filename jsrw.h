@@ -131,14 +131,14 @@ class Reader {
     }
 
     template <class T>
-    bool read(std::vector<T> &v, std::function<bool(Reader &, T &)> fn) {
+    bool read(std::vector<T> &v, std::function<bool(T &)> fn) {
         if (!consume('[')) {
             return false;
         }
         v.clear();
         while (!next_is(']')) {
             T t;
-            if (!fn(*this, t)) {
+            if (!fn(t)) {
                 v.push_back(std::move(t));
                 return false;
             }
@@ -171,7 +171,7 @@ class Reader {
     }
 
     template <class T>
-    bool read(std::map<std::string, T> &m, std::function<bool(Reader &, T &)> fn) {
+    bool read(std::map<std::string, T> &m, std::function<bool(T &)> fn) {
         if (!consume('{')) {
             return false;
         }
@@ -181,7 +181,7 @@ class Reader {
                 return false;
             }
             T t;
-            if (!fn(*this, t)) {
+            if (!fn(t)) {
                 m[std::move(key)] = std::move(t);
                 return false;
             }
