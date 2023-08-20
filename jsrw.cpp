@@ -297,8 +297,8 @@ void Reader::skip_string() {
 }
 
 std::ostream &operator<<(std::ostream &os, const str &s) {
-    const char *p = s.s.data();
-    const char *q = s.s.data() + s.s.size();
+    const char *p = s.s;
+    const char *q = s.s + s.len;
 
     os << '"';
 

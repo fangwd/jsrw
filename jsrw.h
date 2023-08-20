@@ -199,8 +199,11 @@ class Reader {
 };
 
 struct str {
-    const std::string &s;
-    str(const std::string &s) : s(s) {}
+    const char *s;
+    size_t len;
+    str(const std::string &s) : str(s.data(), s.length()) {}
+    str(const char *s) : str(s, strlen(s)) {}
+    str(const char *s, size_t len) : s(s), len(len) {}
     friend std::ostream &operator<<(std::ostream &os, const str &s);
 };
 
