@@ -515,29 +515,21 @@ class Writer {
     }
 
     template <typename T>
-    Writer &write(const std::vector<T> &v) {
+    Writer &write(const std::vector<T> &v, std::function<void(const T &)> fn) {
         out << '[';
         size_t i = 0;
         for (const auto &p : v) {
             if (i++ > 0) {
                 out << ',';
             }
-            if constexpr (std::is_pointer<T>::value) {
-                if (p == nullptr) {
-                    out << "null";
-                } else {
-                    write(*p);
-                }
-            } else {
-                write(p);
-            }
+            fn(p);
         }
         out << ']';
         return *this;
     }
 
     template <typename T>
-    Writer &write(const std::map<std::string, T> &m) {
+    Writer &write(const std::map<std::string, T> &m, std::function<void(const T &)> fn) {
         out << '{';
         size_t i = 0;
         for (const auto &p : m) {
@@ -546,15 +538,7 @@ class Writer {
             }
             write(p.first.data(), p.first.length());
             out << ':';
-            if constexpr (std::is_pointer<T>::value) {
-                if (p.second == nullptr) {
-                    out << "null";
-                } else {
-                    write(*p.second);
-                }
-            } else {
-                write(p.second);
-            }
+            fn(p.second);
         }
         out << '}';
         return *this;

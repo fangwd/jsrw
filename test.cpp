@@ -16,7 +16,7 @@ static void test_read_empty() {
 }
 
 static void test_read_symbol() {
-     std::istringstream input("{ } []:, null'");
+    std::istringstream input("{ } []:, null'");
     Reader reader(input);
     int expected[] = {'{', '}', '[', ']', ':', ',', Null, Error, 0};
     for (int i = 0; expected[i]; i++) {
@@ -27,7 +27,7 @@ static void test_read_symbol() {
 }
 
 static void test_read_bool() {
-     std::istringstream input( "true false");
+    std::istringstream input("true false");
 
     Reader reader(input);
     assert(reader.next_is(Bool));
@@ -46,7 +46,7 @@ static void test_read_bool() {
 
 static void test_read_number() {
     {
-        std::istringstream input( "123 -456 0 -0");
+        std::istringstream input("123 -456 0 -0");
         Reader<2> reader(input);
         assert(reader.next_is(Integer));
 
@@ -65,7 +65,7 @@ static void test_read_number() {
         assert(val == -0);
     }
     {
-        std::istringstream input( "1");
+        std::istringstream input("1");
         Reader reader(input);
         assert(reader.next_is(Integer));
         float dval;
@@ -73,14 +73,14 @@ static void test_read_number() {
         assert(dequal(dval, 1));
     }
     {
-        std::istringstream input( "2");
+        std::istringstream input("2");
         Reader reader(input);
         assert(reader.next_is(Integer));
         assert(dequal(reader.read<float>(), 2));
     }
 
     {
-        std::istringstream input ( "123.456");
+        std::istringstream input("123.456");
         Reader reader(input);
         assert(reader.next_is(Number));
 
@@ -91,7 +91,7 @@ static void test_read_number() {
     }
 
     {
-        std::istringstream input ( "-123.456");
+        std::istringstream input("-123.456");
         Reader reader(input);
         assert(reader.next_is(Number));
 
@@ -102,7 +102,7 @@ static void test_read_number() {
     }
 
     {
-        std::istringstream input ( "-1.");
+        std::istringstream input("-1.");
         Reader reader(input);
         double val;
         assert(reader.read(val));
@@ -110,7 +110,7 @@ static void test_read_number() {
     }
 
     {
-        std::istringstream input ( "0.");
+        std::istringstream input("0.");
         Reader reader(input);
         double val;
         assert(reader.read(val));
@@ -118,7 +118,7 @@ static void test_read_number() {
     }
 
     {
-        std::istringstream input ( "-.456");
+        std::istringstream input("-.456");
         Reader reader(input);
         double val;
         assert(reader.read(val));
@@ -126,7 +126,7 @@ static void test_read_number() {
     }
 
     {
-         std::istringstream input ( "-.456e+1");
+        std::istringstream input("-.456e+1");
         Reader reader(input);
         double val;
         assert(reader.read(val));
@@ -134,7 +134,7 @@ static void test_read_number() {
     }
 
     {
-        std::istringstream input ( ".456e+10");
+        std::istringstream input(".456e+10");
         Reader reader(input);
         double val;
         assert(reader.read(val));
@@ -142,7 +142,7 @@ static void test_read_number() {
     }
 
     {
-         std::istringstream input ( "-.456e-2");
+        std::istringstream input("-.456e-2");
         Reader reader(input);
         double val;
         assert(reader.read(val));
@@ -150,7 +150,7 @@ static void test_read_number() {
     }
 
     {
-         std::istringstream input ( ".");
+        std::istringstream input(".");
         Reader reader(input);
         assert(reader.next_is(Error));
         double val;
@@ -158,7 +158,7 @@ static void test_read_number() {
     }
 
     {
-         std::istringstream input ( "-.");
+        std::istringstream input("-.");
         Reader reader(input);
         assert(reader.next_is(Error));
         double val;
@@ -166,7 +166,7 @@ static void test_read_number() {
     }
 
     {
-         std::istringstream input ( "-1.E");
+        std::istringstream input("-1.E");
         Reader reader(input);
         assert(reader.next_is(Error));
         double val;
@@ -174,7 +174,7 @@ static void test_read_number() {
     }
 
     {
-         std::istringstream input ( "-1.e0");
+        std::istringstream input("-1.e0");
         Reader reader(input);
         assert(reader.next_is(Number));
         float val;
@@ -186,7 +186,7 @@ static void test_read_number() {
 static void test_read_string() {
     std::string s;
     {
-         std::istringstream input ( "\"\",");
+        std::istringstream input("\"\",");
         Reader reader(input);
         assert(reader.next_is(String));
         assert(reader.read(s));
@@ -194,48 +194,48 @@ static void test_read_string() {
         assert(reader.next_is(','));
     }
     {
-        std::istringstream input ( "\"1\",");
+        std::istringstream input("\"1\",");
         Reader reader(input);
         assert(reader.read(s));
         assert(s == "1");
         assert(reader.next_is(','));
     }
     {
-        std::istringstream input ( "\"\\r\\n\"");
+        std::istringstream input("\"\\r\\n\"");
         Reader reader(input);
         assert(reader.read(s));
         assert(s == "\r\n");
     }
     {
-        std::istringstream input ( "\"\\u597d\"");
+        std::istringstream input("\"\\u597d\"");
         Reader reader(input);
         assert(reader.read(s));
         assert(s == "好");
     }
     {
-        std::istringstream input ( "\"\\u597\"");
+        std::istringstream input("\"\\u597\"");
         Reader reader(input);
         assert(!reader.read(s));
     }
     {
-        std::istringstream input ( "\"\\u597x\"");
+        std::istringstream input("\"\\u597x\"");
         Reader reader(input);
         assert(!reader.read(s));
     }
     {
-        std::istringstream input ( "\"\\u597d\\u597dx\"");
+        std::istringstream input("\"\\u597d\\u597dx\"");
         Reader reader(input);
         assert(reader.read(s));
         assert(s == "好好x");
     }
     {
-        std::istringstream input ( "\"好\"");
+        std::istringstream input("\"好\"");
         Reader reader(input);
         assert(reader.read(s));
         assert(s == "好");
     }
     {
-        std::istringstream input ( "");
+        std::istringstream input("");
         Reader reader(input);
         assert(!reader.read(s));
     }
@@ -244,13 +244,13 @@ static void test_read_string() {
 static void test_skip_string() {
     std::string s;
     {
-        std::istringstream input ( "\"\",");
+        std::istringstream input("\"\",");
         Reader reader(input);
         assert(reader.consume(String));
         assert(reader.next_is(','));
     }
     {
-        std::istringstream input ( "\"\\n\\\"\",");
+        std::istringstream input("\"\\n\\\"\",");
         Reader reader(input);
         assert(reader.consume(String));
         assert(reader.next_is(','));
@@ -260,7 +260,7 @@ static void test_skip_string() {
 static void test_read_key() {
     std::string key;
     {
-        std::istringstream input ( " \"success\": true");
+        std::istringstream input(" \"success\": true");
         Reader reader(input);
         assert(reader.read_key(key));
         assert(key == "success");
@@ -271,19 +271,19 @@ static void test_read_key() {
     }
 
     {
-        std::istringstream input ( " 123");
+        std::istringstream input(" 123");
         Reader reader(input);
         assert(!reader.read_key(key));
     }
 
     {
-        std::istringstream input ( " \"success\"");
+        std::istringstream input(" \"success\"");
         Reader reader(input);
         assert(!reader.read_key(key));
     }
 
     {
-        std::istringstream input ( " \"success\": true");
+        std::istringstream input(" \"success\": true");
         Reader reader(input);
         assert(reader.read_key(key));
         assert(key.length() == 7);
@@ -292,7 +292,7 @@ static void test_read_key() {
     }
 
     {
-        std::istringstream input ( "\"success\" : true");
+        std::istringstream input("\"success\" : true");
         Reader reader(input);
         assert(reader.read_key(key));
         assert(key.length() == 7);
@@ -301,7 +301,7 @@ static void test_read_key() {
     }
 
     {
-        std::istringstream input ( "\"\\nsu\\\"ccess\\\"\" : true");
+        std::istringstream input("\"\\nsu\\\"ccess\\\"\" : true");
         Reader reader(input);
         assert(reader.read_key(key));
         assert(key == "\nsu\"ccess\"");
@@ -310,7 +310,7 @@ static void test_read_key() {
 }
 
 static void test_read_mix() {
-    std::istringstream input ( " { \"success\":true, \"message\": \"正确!\" }");
+    std::istringstream input(" { \"success\":true, \"message\": \"正确!\" }");
     Reader reader(input);
 
     std::string sval;
@@ -352,7 +352,7 @@ static void test_stringify() {
 }
 
 static void parse_vector() {
-   std::istringstream input("[1,2,3]");
+    std::istringstream input("[1,2,3]");
     jsrw::Reader reader(input);
 
     std::vector<int> parsed;
@@ -433,7 +433,7 @@ static void parse_vector2() {
     }
 
     {
-        std::istringstream input ("[1,,2]");
+        std::istringstream input("[1,,2]");
         jsrw::Reader reader(input);
         std::vector<int> values;
         bool ok = reader.read<int>(values, [&](int& n) -> bool { return reader.read(n); });
@@ -443,9 +443,9 @@ static void parse_vector2() {
 
 static void parse_vector_ptr() {
     {
-         std::istringstream input("[1,2,3]");
+        std::istringstream input("[1,2,3]");
         jsrw::Reader reader(input);
-        std::vector<int> *values;
+        std::vector<int>* values;
         bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
         assert(ok);
         assert(*values == std::vector<int>({1, 2, 3}));
@@ -455,7 +455,7 @@ static void parse_vector_ptr() {
     {
         std::istringstream input("null,");
         jsrw::Reader reader(input);
-        std::vector<int> *values;
+        std::vector<int>* values;
         bool ok = reader.read<int>(values, [&](int& n) -> bool { return reader.read(n); });
         assert(ok);
         assert(values == nullptr);
@@ -468,9 +468,7 @@ static void parse_map2() {
         std::istringstream input("{\"x\": 1, \"y\":2}");
         jsrw::Reader reader(input);
         std::map<std::string, int> values;
-        bool ok = reader.read<int>(values, [&](int& value) {
-            return reader.read(value);
-        });
+        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
         assert(ok);
         std::map<std::string, int> expected = {{"x", 1}, {"y", 2}};
         assert(values == expected);
@@ -515,7 +513,7 @@ static void parse_map_ptr() {
     {
         std::istringstream input("{\"x\": 1, \"y\":2}");
         jsrw::Reader reader(input);
-        std::map<std::string, int> *values;
+        std::map<std::string, int>* values;
         bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
         assert(ok);
         std::map<std::string, int> expected = {{"x", 1}, {"y", 2}};
@@ -651,7 +649,7 @@ static void test_write_simple_values() {
     assert(write((const char*)nullptr) == "null");
     assert(write((char*)nullptr) == "null");
     assert(write((std::string*)nullptr) == "null");
-    assert(write((const char *)"hello") == "\"hello\"");
+    assert(write((const char*)"hello") == "\"hello\"");
     assert(write(s) == "\"hello\"");
     assert(write<const std::string*>(&s) == "\"hello\"");
     assert(write(true) == "true");
@@ -662,46 +660,59 @@ static void test_write_simple_values() {
 }
 
 static void test_write_vectors() {
+    std::stringstream ss;
+    Writer writer(ss);
+
     {
         std::vector<int> values = {1, 2, 3};
-        assert(write(values) == "[1,2,3]");
+        writer.write<int>(values, [&](const int& n) { writer.write(n); });
+        assert(ss.str() == "[1,2,3]");
+        ss.str("");
     }
 
     {
         int a = 1, b = 2;
         std::vector<int*> values = {&a, &b, nullptr};
-        assert(write(values) == "[1,2,null]");
+        writer.write<int*>(values, [&](const int* n) { writer.write(n); });
+        assert(ss.str() == "[1,2,null]");
+        ss.str("");
     }
 
     {
         int a = 1, b = 2;
         std::vector<int*> values = {&a, &b, nullptr};
-        assert(write(&values) == "[1,2,null]");
+        writer.write<int*>(values, [&](const int* n) { writer.write(n); });
+        assert(ss.str() == "[1,2,null]");
+        ss.str("");
     }
-
-    assert(write<std::vector<int*>*>(nullptr) == "null");
 }
 
 static void test_write_maps() {
+    std::stringstream ss;
+    Writer writer(ss);
+
     {
         std::map<std::string, int> value = {{"x", 1}, {"y", 2}};
-        assert(write(value) == "{\"x\":1,\"y\":2}");
+        writer.write<int>(value, [&](const int& n) { writer.write(n); });
+        assert(ss.str() == "{\"x\":1,\"y\":2}");
+        ss.str("");
     }
 
     {
         int a = 1, b = 2;
         std::map<std::string, int*> value = {{"x", &a}, {"y", &b}};
-        assert(write(value) == "{\"x\":1,\"y\":2}");
+        writer.write<int*>(value, [&](const int* n) { writer.write(n); });
+        assert(ss.str() == "{\"x\":1,\"y\":2}");
+        ss.str("");
     }
 
     {
         int a = 1, b = 2;
         std::map<std::string, int*> value = {{"x", &a}, {"y", &b}, {"z", nullptr}};
-        assert(write(value) == "{\"x\":1,\"y\":2,\"z\":null}");
+        writer.write<int*>(value, [&](const int* n) { writer.write(n); });
+        assert(ss.str() == "{\"x\":1,\"y\":2,\"z\":null}");
+        ss.str("");
     }
-
-    std::map<std::string, int*>* p = nullptr;
-    assert(write(p) == "null");
 }
 
 static void test_writer() {
