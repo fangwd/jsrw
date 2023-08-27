@@ -1,7 +1,7 @@
 all: test
 
-test: test.cpp jsrw.h
-	g++ -std=c++17 -Wall -g -o $@ test.cpp
+test: jsrw.cpp test.cpp
+	g++ -std=c++11 -Wall -g -o $@ $^
 
 clean:
 	rm -fr *.o test test.dSYM
