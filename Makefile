@@ -1,9 +1,6 @@
-all: test example
+all: test
 
 test: test.cpp jsrw.h
-	g++ -std=c++17 -Wall -g -o $@ $<
-
-example: example.cpp jsrw.h
 	g++ -std=c++17 -Wall -g -o $@ $<
 
 clean:
