@@ -1,3 +1,4 @@
+// Copyright (c) 2023 Weidong Fang (wdfang@gmail.com)
 #pragma once
 
 #include <functional>
@@ -270,13 +271,6 @@ class Reader {
             return true;
         }
         return false;
-    }
-
-    template <typename T>
-    T read() {
-        T t;
-        read(t);
-        return t;
     }
 
     bool read(double &value) {
