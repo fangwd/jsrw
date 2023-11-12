@@ -2,12 +2,11 @@ A stream-oriented, header-only library for parsing JSON data in C++.
 
 Main features:
 - Memory efficient: instead of parsing the whole JSON data into a structure in memory, the library provides a `Reader` class with methods to check the type of the next token in the stream and to parse different types of tokens one at a time.
-- Minimal writing support: provides a helper function to write JSON strings
+- Minimal writing support: provides an overloaded `<<` operator to help write JSON strings
 - UTF-8 support: capable of encoding/decoding UTF-8 characters
 - Light-weight and header only: the whole library has only 539 lines of code
 
 # Usage
-The main class of the library is `jsrw::Reader`. Below are some examples showing different use cases of  `Reader`.
 
 ## Parsing
 ### Parsing objects
