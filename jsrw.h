@@ -9,6 +9,8 @@
 #include <type_traits>
 #include <vector>
 
+#define JSRW_VERSION "0.1.0"
+
 namespace jsrw {
 
 enum TokenType {
