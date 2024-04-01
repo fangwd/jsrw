@@ -9,7 +9,7 @@
 #include <type_traits>
 #include <vector>
 
-#define JSRW_VERSION "0.1.0"
+#define JSRW_VERSION "0.2.0"
 
 namespace jsrw {
 
@@ -275,28 +275,6 @@ class Reader {
         return false;
     }
 
-    bool read(double &value) {
-        if (next_.type == Number) {
-            value = next_.dval;
-            parse();
-            return true;
-        } else if (next_.type == Integer) {
-            value = (double)next_.lval;
-            parse();
-            return true;
-        }
-        return false;
-    }
-
-    bool read(float &value) {
-        double d;
-        if (!read(d)) {
-            return false;
-        }
-        value = (float)d;
-        return true;
-    }
-
     bool read(bool &value) {
         if (next_.type == Bool) {
             value = next_.bval;
@@ -306,40 +284,70 @@ class Reader {
         return false;
     }
 
-    template <typename T>
-    bool read(T &value) {
+    template <typename Type, std::enable_if_t<std::is_integral<Type>::value, bool> = true>
+    bool read(Type &value) {
         if (next_.type == Integer) {
-            value = (T)next_.lval;
+            value = (double)next_.lval;
             parse();
             return true;
         }
         return false;
     }
 
-    template <class T>
-    bool read(std::vector<T> *&v, std::function<bool(T &)> fn) {
-        if (next_is(Null)) {
-            v = nullptr;
+    template <typename Type, std::enable_if_t<std::is_floating_point<Type>::value, bool> = true>
+    bool read(Type &value) {
+        if (next_.type == Number) {
+            value = next_.dval;
+            parse();
+            return true;
+        } else if (next_.type == Integer) {
+            value = (Type)next_.lval;
             parse();
             return true;
         }
-        v = new std::vector<T>();
-        return read(*v, fn);
+        return false;
+    }
+
+    template <typename Type, std::enable_if_t<std::is_pointer<Type>::value, bool> = true>
+    bool read(Type &value, std::function<bool()> fn = {}) {
+        if (next_is(Null)) {
+            value = nullptr;
+            parse();
+            return true;
+        }
+        if (fn) {
+            return fn();
+        }
+        value = new typename std::remove_pointer<Type>::type();
+        return read(*value);
     }
 
     template <class T>
-    bool read(std::vector<T> &v, std::function<bool(T &)> fn) {
+    bool read(std::vector<T> &values) {
         if (!consume('[')) {
             return false;
         }
-        v.clear();
         while (!next_is(']')) {
-            T t;
-            if (!fn(t)) {
-                v.push_back(std::move(t));
+            values.emplace_back(T());
+            if (!read(values.back())) {
                 return false;
             }
-            v.push_back(std::move(t));
+            if (!consume(',')) {
+                break;
+            }
+        }
+        return consume(']');
+    }
+
+    template <class T>
+    bool read(std::vector<T> &values, std::function<bool()> fn) {
+        if (!consume('[')) {
+            return false;
+        }
+        while (!next_is(']')) {
+            if (!fn()) {
+                return false;
+            }
             if (!consume(',')) {
                 break;
             }
@@ -366,37 +374,8 @@ class Reader {
     }
 
     template <class T>
-    bool read(std::map<std::string, T> *&m, std::function<bool(T &)> fn) {
-        if (next_is(Null)) {
-            m = nullptr;
-            parse();
-            return true;
-        }
-        m = new std::map<std::string, T>();
-        return read(*m, fn);
-    }
-
-    template <class T>
-    bool read(std::map<std::string, T> &m, std::function<bool(T &)> fn) {
-        if (!consume('{')) {
-            return false;
-        }
-        while (!next_is('}')) {
-            std::string key;
-            if (!read_key(key)) {
-                return false;
-            }
-            T t;
-            if (!fn(t)) {
-                m[std::move(key)] = std::move(t);
-                return false;
-            }
-            m[std::move(key)] = std::move(t);
-            if (!consume(',')) {
-                break;
-            }
-        }
-        return consume('}');
+    bool read(std::map<std::string, T> &m) {
+        return read([this, &m](const std::string &key) { return read(m[key]); });
     }
 
     bool read(std::string &s) {
@@ -467,14 +446,6 @@ class Reader {
         parse();
 
         return true;
-    }
-
-    bool read(const char *& key) {
-        if (read(key_)) {
-            key = key_.c_str();
-            return true;
-        }
-        return false;
     }
 };
 

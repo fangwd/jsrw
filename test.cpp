@@ -87,9 +87,11 @@ static void test_read_number() {
     }
     {
         std::istringstream input(" 2");
+        double dval;
         Reader reader(input);
         assert(reader.next_is(Integer));
-        assert(dequal(reader.read<float>(), 2));
+        assert(reader.read(dval));
+        assert(dequal(dval, 2));
     }
 
     {
@@ -363,234 +365,137 @@ static void test_stringify() {
     assert(ss.str() == "\"\\/好\\u0000.\"");
 }
 
-static void parse_vector() {
-    std::istringstream input("[1,2,3]");
-    jsrw::Reader reader(input);
-
-    std::vector<int> parsed;
-    for (reader.consume('['); !reader.next_is(']'); reader.consume(',')) {
-        parsed.push_back(reader.read<int>());
-    }
-
-    assert(reader.consume(']'));
-    assert(parsed == std::vector<int>({1, 2, 3}));
-}
-
-static void parse_map() {
-    struct Product {
-        int id;
-        std::string name;
-        float price;
-    };
-
-    std::istringstream input("{\"id\": 1, \"sku\": \"p1\", \"name\": \"product\", \"price\": 10}");
-    jsrw::Reader reader(input);
-
-    Product product;
-    std::string key;
-    for (reader.consume('{'); !reader.next_is('}'); reader.consume(',')) {
-        reader.read_key(key);
-        if (key == "id") {
-            product.id = reader.read<int>();
-        } else if (key == "name") {
-            product.name = reader.read<std::string>();
-        } else if (key == "price") {
-            product.price = reader.read<double>();
-        } else {
-            // std::cout << "Ignored key '" << key << "'\n";
-            reader.consume();
-        }
-    }
-    assert(reader.consume('}'));
-
-    assert(product.id == 1);
-    assert(product.name == "product");
-    assert(dequal(product.price, 10));
-}
-
-static void parse_vector2() {
+static void test_read_array() {
     {
         std::istringstream input("[1,2,3]");
-        jsrw::Reader reader(input);
+        jsrw::Reader<> reader(input);
         std::vector<int> values;
-        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
+        bool ok = reader.read(values);
         assert(ok);
         assert(values == std::vector<int>({1, 2, 3}));
     }
 
     {
-        std::istringstream input("[1,]");
-        jsrw::Reader reader(input);
-        std::vector<int> values;
-        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
-        assert(ok);
-        assert(values == std::vector<int>({1}));
-    }
-
-    {
-        std::istringstream input("[]");
-        jsrw::Reader reader(input);
-        std::vector<int> values;
-        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
-        assert(ok);
-        assert(values == std::vector<int>());
-    }
-
-    {
-        std::istringstream input("[,]");
-        jsrw::Reader reader(input);
-        std::vector<int> values;
-        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
-        assert(!ok);
-    }
-
-    {
-        std::istringstream input("[1,,2]");
-        jsrw::Reader reader(input);
-        std::vector<int> values;
-        bool ok = reader.read<int>(values, [&](int& n) -> bool { return reader.read(n); });
-        assert(!ok);
-    }
-}
-
-static void parse_vector_ptr() {
-    {
         std::istringstream input("[1,2,3]");
-        jsrw::Reader reader(input);
-        std::vector<int>* values;
-        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
+        jsrw::Reader<> reader(input);
+        std::vector<int> values;
+        bool ok = reader.read(values, [&] {
+            int n;
+            assert(reader.read(n));
+            if (n != 2) {
+                values.push_back(n);
+            }
+            return true;
+        });
         assert(ok);
-        assert(*values == std::vector<int>({1, 2, 3}));
+        assert(values == std::vector<int>({1, 3}));
+    }
+
+    {
+        std::istringstream input(R"js(["foo", "bar",])js");
+        jsrw::Reader<> reader(input);
+        std::vector<std::string> *values;
+        bool ok = reader.read(values);
+        assert(ok);
+        assert(*values == std::vector<std::string>({"foo", "bar"}));
         delete values;
     }
-
-    {
-        std::istringstream input("null,");
-        jsrw::Reader reader(input);
-        std::vector<int>* values;
-        bool ok = reader.read<int>(values, [&](int& n) -> bool { return reader.read(n); });
-        assert(ok);
-        assert(values == nullptr);
-        assert(reader.next_is(','));
-    }
 }
 
-static void parse_map2() {
+static void test_read_map() {
     {
         std::istringstream input("{\"x\": 1, \"y\":2}");
-        jsrw::Reader reader(input);
+        jsrw::Reader<> reader(input);
         std::map<std::string, int> values;
-        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
+        bool ok = reader.read(values);
         assert(ok);
         std::map<std::string, int> expected = {{"x", 1}, {"y", 2}};
         assert(values == expected);
     }
 
     {
-        std::istringstream input("[1,]");
-        jsrw::Reader reader(input);
-        std::vector<int> values;
-        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
+        std::istringstream input("{\"x\": 1, \"y\":2}");
+        jsrw::Reader<> reader(input);
+        std::map<std::string, int> values;
+        bool ok = reader.read([&](const std::string &key) {
+            int n;
+            reader.read(n);
+            if (key != "y") {
+                values[key] = n;
+            }
+            return true;
+        });
         assert(ok);
-        assert(values == std::vector<int>({1}));
+        std::map<std::string, int> expected = {{"x", 1}};
+        assert(values == expected);
     }
 
-    {
-        std::istringstream input("[]");
-        jsrw::Reader reader(input);
-        std::vector<int> values;
-        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
-        assert(ok);
-        assert(values == std::vector<int>());
-    }
-
-    {
-        std::istringstream input("[,]");
-        jsrw::Reader reader(input);
-        std::vector<int> values;
-        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
-        assert(!ok);
-    }
-
-    {
-        std::istringstream input("[1,,2]");
-        jsrw::Reader reader(input);
-        std::vector<int> values;
-        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
-        assert(!ok);
-    }
-}
-
-static void parse_map_ptr() {
     {
         std::istringstream input("{\"x\": 1, \"y\":2}");
-        jsrw::Reader reader(input);
-        std::map<std::string, int>* values;
-        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
+        jsrw::Reader<> reader(input);
+        std::map<std::string, int> *values;
+        bool ok = reader.read(values);
         assert(ok);
         std::map<std::string, int> expected = {{"x", 1}, {"y", 2}};
         assert(*values == expected);
         delete values;
     }
-    {
-        std::istringstream input("null,");
-        jsrw::Reader reader(input);
-        std::map<std::string, int>* values;
-        bool ok = reader.read<int>(values, [&](int& value) { return reader.read(value); });
-        assert(ok);
-        assert(values == nullptr);
-        assert(reader.next_is(','));
-    }
 }
 
 struct Person {
     std::string name;
-    bool decode(jsrw::Reader<>& reader) {
-        return reader.read([&](const std::string& key) {
-            if (key == "name") {
-                return reader.read(name);
-            }
-            return false;
-        });
-    }
 };
+
+static bool read_person(Reader<> &reader, Person &person) {
+    return reader.read([&](const std::string &key) {
+        if (key == "name") {
+            return reader.read(person.name);
+        }
+        return false;
+    });
+}
 
 static void test_parse_objects() {
     {
         std::istringstream input("{\"name\": \"person\"}");
         jsrw::Reader reader(input);
         Person p;
-        assert(p.decode(reader));
+        assert(read_person(reader, p));
         assert(p.name == "person");
         assert(reader.next_is(Empty));
     }
+
     {
         std::istringstream input("{\"name\": 100");
         jsrw::Reader reader(input);
         Person p;
-        assert(!p.decode(reader));
+        assert(!read_person(reader, p));
     }
+
     {
-        // unknown field 'age'
         std::istringstream input("{\"name\": \"person\", \"age\": 1}");
         jsrw::Reader reader(input);
         Person p;
-        assert(!p.decode(reader));
+        // unknown field 'age'
+        assert(!read_person(reader, p));
     }
+
     {
         std::istringstream input("{}");
         jsrw::Reader reader(input);
         Person p;
-        assert(p.decode(reader));
+        assert(read_person(reader, p));
         assert(p.name.empty());
     }
 
     {
         std::istringstream input("[{\"name\": \"person1\"}, {\"name\": \"person2\",} ]");
         jsrw::Reader reader(input);
-        auto fn = [&](Person& person) { return person.decode(reader); };
         std::vector<Person> people;
-        bool ok = reader.read<Person>(people, fn);
+        bool ok = reader.read(people, [&] {
+            people.emplace_back();
+            return read_person(reader, people.back());
+        });
         assert(ok);
         assert(people.size() == 2);
         assert(people[0].name == "person1");
@@ -598,73 +503,15 @@ static void test_parse_objects() {
     }
 
     {
-        std::istringstream input("[{\"name\": \"person1\"}, null, {\"name\": \"person3\"} ]");
+        std::istringstream input(R"js({"p1": {"name": "person1"}, "p2": {"name": "person2"} })js");
         jsrw::Reader reader(input);
-        std::vector<Person*> people;
-        bool ok = reader.read<Person*>(people, [&](Person*& person) {
-            if (reader.next_is(Null)) {
-                reader.consume();
-                person = nullptr;
-                return true;
-            }
-            person = new Person();
-            return person->decode(reader);
-        });
+        std::map<std::string, Person> people;
+        bool ok = reader.read([&](const std::string &key) { return read_person(reader, people[key]); });
         assert(ok);
-        assert(people.size() == 3);
-        assert(people[0]->name == "person1");
-        assert(people[1] == nullptr);
-        assert(people[2]->name == "person3");
-        for (auto p : people) {
-            delete p;
-        }
+        assert(people.size() == 2);
+        assert(people["p1"].name == "person1");
+        assert(people["p2"].name == "person2");
     }
-
-    {
-        std::istringstream input("[{\"name\": \"person1\"}, null, {\"code\": \"1\"} ]");
-        jsrw::Reader reader(input);
-        std::vector<Person*> people;
-        bool ok = reader.read<Person*>(people, [&](Person*& person) {
-            if (reader.next_is(Null)) {
-                reader.consume();
-                person = nullptr;
-                return true;
-            }
-            person = new Person();
-            return person->decode(reader);
-        });
-        assert(!ok);
-        for (auto p : people) {
-            delete p;
-        }
-    }
-}
-
-static void test_write_simple_values();
-static void test_write_vectors();
-static void test_write_maps();
-
-int main() {
-    test_read_empty();
-    test_read_symbol();
-    test_read_bool();
-    test_read_number();
-    test_read_string();
-    test_skip_string();
-    test_read_key();
-    test_read_mix();
-    test_stringify();
-    parse_vector();
-    parse_map();
-    parse_vector2();
-    parse_vector_ptr();
-    parse_map2();
-    parse_map_ptr();
-    test_parse_objects();
-
-    test_write_simple_values();
-    test_write_vectors();
-    test_write_maps();
 }
 
 struct OrderItem {
@@ -735,7 +582,7 @@ class Writer {
     }
 
     // app
-    void write(std::ostream &out, const OrderItem& item) {
+    void write(std::ostream &out, const OrderItem &item) {
         out << "{";
         out << jsrw::str("product_id") << ":";
         write(out, item.product_id);
@@ -745,7 +592,7 @@ class Writer {
         out << '}';
     }
 
-    void write(std::ostream &out, const Order& order) {
+    void write(std::ostream &out, const Order &order) {
         out << "{";
         out << jsrw::str("id") << ":";
         write(out, order.id);
@@ -756,9 +603,8 @@ class Writer {
     }
 };
 
-
 template <typename T>
-std::string write(const T& t) {
+std::string write(const T &t) {
     std::stringstream ss;
     Writer writer;
     writer.write(ss, t);
@@ -774,13 +620,13 @@ static void test_write_simple_values() {
     assert(write(100) == "100");
     assert(write(n) == "100");
     assert(write(&n) == "100");
-    assert(write((int*)nullptr) == "null");
-    assert(write((const char*)nullptr) == "null");
-    assert(write((char*)nullptr) == "null");
-    assert(write((std::string*)nullptr) == "null");
-    assert(write((const char*)"hello") == "\"hello\"");
+    assert(write((int *)nullptr) == "null");
+    assert(write((const char *)nullptr) == "null");
+    assert(write((char *)nullptr) == "null");
+    assert(write((std::string *)nullptr) == "null");
+    assert(write((const char *)"hello") == "\"hello\"");
     assert(write(s) == "\"hello\"");
-    assert(write<const std::string*>(&s) == "\"hello\"");
+    assert(write<const std::string *>(&s) == "\"hello\"");
     assert(write(true) == "true");
     assert(write(false) == "false");
     assert(write(&b) == "true");
@@ -801,16 +647,16 @@ static void test_write_vectors() {
 
     {
         int a = 1, b = 2;
-        std::vector<int*> values = {&a, &b, nullptr};
-        writer.write<int*>(ss, values);
+        std::vector<int *> values = {&a, &b, nullptr};
+        writer.write<int *>(ss, values);
         assert(ss.str() == "[1,2,null]");
         ss.str("");
     }
 
     {
         int a = 1, b = 2;
-        std::vector<int*> values = {&a, &b, nullptr};
-        writer.write<int*>(ss, values);
+        std::vector<int *> values = {&a, &b, nullptr};
+        writer.write<int *>(ss, values);
         assert(ss.str() == "[1,2,null]");
         ss.str("");
     }
@@ -825,9 +671,11 @@ static void test_write_vectors() {
                                       .items = {{.product_id = 3, .quantity = 300}, {.product_id = 4, .quantity = 400}},
                                   }};
         writer.write(ss, orders);
-        assert(ss.str() == R"([{"id":1,"items":[{"product_id":1,"quantity":100},{"product_id":2,"quantity":200}]},{"id":2,"items":[{"product_id":3,"quantity":300},{"product_id":4,"quantity":400}]}])");
+        assert(
+            ss.str() ==
+            R"([{"id":1,"items":[{"product_id":1,"quantity":100},{"product_id":2,"quantity":200}]},{"id":2,"items":[{"product_id":3,"quantity":300},{"product_id":4,"quantity":400}]}])");
         ss.str("");
-     }
+    }
 }
 
 static void test_write_maps() {
@@ -843,17 +691,36 @@ static void test_write_maps() {
 
     {
         int a = 1, b = 2;
-        std::map<std::string, int*> value = {{"x", &a}, {"y", &b}};
-        writer.write<int*>(ss, value);
+        std::map<std::string, int *> value = {{"x", &a}, {"y", &b}};
+        writer.write<int *>(ss, value);
         assert(ss.str() == "{\"x\":1,\"y\":2}");
         ss.str("");
     }
 
     {
         int a = 1, b = 2;
-        std::map<std::string, int*> value = {{"x", &a}, {"y", &b}, {"z", nullptr}};
-        writer.write<int*>(ss, value);
+        std::map<std::string, int *> value = {{"x", &a}, {"y", &b}, {"z", nullptr}};
+        writer.write<int *>(ss, value);
         assert(ss.str() == "{\"x\":1,\"y\":2,\"z\":null}");
         ss.str("");
     }
+}
+
+int main() {
+    test_read_empty();
+    test_read_symbol();
+    test_read_bool();
+    test_read_number();
+    test_read_string();
+    test_skip_string();
+    test_read_key();
+    test_read_mix();
+    test_stringify();
+    test_read_array();
+    test_read_map();
+    test_parse_objects();
+
+    test_write_simple_values();
+    test_write_vectors();
+    test_write_maps();
 }
