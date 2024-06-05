@@ -457,7 +457,7 @@ struct str {
     str(const char *s, size_t len) : s(s), len(len) {}
 };
 
-std::ostream &operator<<(std::ostream &os, const str &s) {
+inline std::ostream &operator<<(std::ostream &os, const str &s) {
     const char *p = s.s;
     const char *q = s.s + s.len;
 
